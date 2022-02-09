@@ -1,0 +1,21 @@
+#+title: Cifrado César
+
+- Shift: 3
+  - abcdefghijklmnopqr...z
+  - def...c
+  - abc...z
+
+* Aritmética modular
+- Tiene como base el operador módulo
+#+begin_src python :session *py* :results output :exports both :tangled /tmp/test.py
+  d = 54235435 % 256 # 0-255 
+  print(d)
+  print(2 ** 8) # 11,111,111
+  x = (4435 - 3243243) % 2
+  print(x)
+#+end_src
+
+#+RESULTS:
+: 43
+: 256
+: 0

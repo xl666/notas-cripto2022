@@ -1,0 +1,62 @@
+#+title: Manejo de cadenas de texto y binarias
+
+* Binario
+- Al final del día cualquier dato que manipula una computadora es
+  contenido binario
+- El binario se manipula en paquetes de bytes (8 bits), no se puede
+  manipular directamente menos (al menos en las arquitecturas
+  populares modernas)
+- Cada byte representa algo diferente que depende del contexto del
+  programa
+- Si se intenta leer contenido binario en una interfaz de texto (como
+  la línea de comandos), es posible que se vean algunos caracteres
+- Cuidado, lo anterior no quiere decir necesariamente que el contenido
+  sea texto, la interfaz hace su mejor esfuerzo por mostrar los
+  caracteres que puede
+  #+begin_src python :session *py* :results output :exports both :tangled /tmp/test.py
+    b = b'contenido binario 2' # definición literal
+    print(b)
+    import os
+    print(os.urandom(12)) # generar binario aleatorio
+    bs = list(b) # convertir a lista de enteros
+    print(bs)
+    bs[0] = 97
+    original = bytes(bs) # inverso
+    print(original)
+  #+end_src
+
+  #+RESULTS:
+  : b'contenido binario 2'
+  : b'\x03<P,\x1a\x9d+(\xb9Y\xe3\t'
+  : [99, 111, 110, 116, 101, 110, 105, 100, 111, 32, 98, 105, 110, 97, 114, 105, 111, 32, 50]
+  : b'contenido binario 2'
+
+* Texto
+- En una computadora todo es contenido binario, sin embargo,los sistemas operativos le dan un tratamiento especial al texto
+- Internamente el texto es contenido binario
+- Para que la computadora pueda saber a qué caracteres se corresponde un contenido binario se necesitan dos cosas:
+  + Un estándar para mapear caracteres a un valor numérico (por ejemplo ascii o unicode)
+  + Un estándar de codificación que permita establecer correspondencia entre bytes y caracteres (utf-8 por ejemplo)
+- Para no complicarnos la vida se utiliza mayormente (o debería)
+  unicode con utf-8
+- Siempre que se comparta el mismo estándar de codificación no hay que
+  preocuparse mucho de los datos compartidos
+- En contraposición, es un gran problema mezclar sistemas de
+  codificación
+  #+begin_src python :session *py* :results output :exports both :tangled /tmp/test.py
+    print(ord('a')) # valor númerico
+    print(chr(97)) # inverso
+    b = 'cadena'.encode('utf-8') # convertir a binario
+    print(b)
+    s = b.decode('utf-8') # de binario a cadena
+    print(s)
+    import os
+    x = os.urandom(5).decode('utf-8') # error no es texto
+  #+end_src
+
+  #+RESULTS:
+  : 97
+  : a
+  : b'cadena'
+  : cadena
+
