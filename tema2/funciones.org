@@ -23,3 +23,6 @@
 #+RESULTS:
 : 4
 : 1
+
+* Preimagen
+- 1 en función par (1, 3, 5...)

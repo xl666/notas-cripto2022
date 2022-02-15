@@ -60,3 +60,26 @@
   : b'cadena'
   : cadena
 
+* Separar cadenas (binarias o texto)
+- Python cuenta con un mecanismo que se llama slicing (rebanadas)
+- Permite extraer sub elementos de una estructura lineal
+- Se pueden usar índices negativos
+
+#+begin_src python :session *py* :results output :exports both :tangled /tmp/test.py
+  binaria = b'hola mundo'
+  hola = binaria[0:4] # cada posción es un byte
+  print(hola)
+  hola2 = binaria[:4]
+  print(hola2)
+  print(binaria[:]) # hace una copia en memoria
+  print(binaria[:-2])
+  resto = binaria[len(hola):]
+  print(resto)
+#+end_src
+
+#+RESULTS:
+: b'hola'
+: b'hola'
+: b'hola mundo'
+: b'hola mun'
+: b' mundo'
