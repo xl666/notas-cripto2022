@@ -1,0 +1,25 @@
+#+title: Funciones
+
+* Relaciones
+- Son asociaciones entre elementos de uno o varios conjunto
+- Un elemento del dominio se puede relacionar con varios elementos del
+  codominio
+  
+
+* Funciones
+- Es un tipo de relación donde un elemento del dominio sólo puede
+  estar relacionado con un elemento del codominio
+- Por ejemplo la función cuadrado ^2 (función biyectiva)
+- Las funciones pueden ser uno a uno (biyectivas) o no
+- Las funciones hacen que los resultados sean predecibles (si yo
+  conozco la entrada puedo predecir la salida): DETERMINISMO
+- Funciones de una sola vía: aquellas que no son biyectivas. No puedes
+  regresar al elemento del dominio a partir del elemento del codominio
+#+begin_src python :session *py* :results output :exports both :tangled /tmp/test.py
+  print(2 ** 2)
+  print(25 % 2)
+#+end_src
+
+#+RESULTS:
+: 4
+: 1

@@ -1,0 +1,53 @@
+#+title: Funciones de hashing
+
+
+* hashlib
+- Biblioteca integrada en python
+- Cuenta con diversas implementaciones de algoritmos de hashing
+- Sólo funciona con cadenas binarias
+- Cualquier algoritmo que posea el método =update= permite procesar el
+  contenido binario en pedacitos, esto permite no tener que cargar
+  todos los datos binarios en memoria (importante para archivos
+  grandes)
+
+  
+#+begin_src python :session *py* :results output :exports both :tangled /tmp/test.py
+  import hashlib
+  hasher = hashlib.sha256()
+  entrada = b'hola mundo'
+  hasher.update(entrada)
+  print(hasher.hexdigest()) # hash en hexadecimal
+  print(hasher.digest()) # en bytes
+  hasher2 = hashlib.sha256()
+  # procesar en pedacitos
+  for buffer in open('hashes.org', 'br'):
+      hasher2.update(buffer)
+  sha256 = hasher2.hexdigest()    
+  print(sha256)
+#+end_src
+
+#+RESULTS:
+: 0b894166d3336435c800bea36ff21b29eaa801a52f584c006c49289a0dcf6e2f
+: b'\x0b\x89Af\xd33d5\xc8\x00\xbe\xa3o\xf2\x1b)\xea\xa8\x01\xa5/XL\x00lI(\x9a\r\xcfn/'
+: 5e5355191b9582712940149e4aaed715869b13a3e36b299c30bbf289c846668e
+
+* Longitud de hashes
+- En una cadena en hexadecimal cada dos caracteres representa un byte
+- md5: 16 bytes (128 bits)
+- sha256: 32 bytes (256 bits)
+- sha512: 64 bytes (512 bits)
+
+#+begin_src python :session *py* :results output :exports both :tangled /tmp/test.py
+  # cadena de md5
+  md5 = '1c7d02afc6e3c6a7dd59bcdf2fefb387'
+  print(len(md5)//2)
+  print(len(sha256)//2)
+  print(256//8)
+  print(2**128) # diferentes hashes en md5
+#+end_src  
+
+#+RESULTS:
+: 16
+: 32
+: 32
+: 340282366920938463463374607431768211456
