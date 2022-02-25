@@ -1,0 +1,70 @@
+#+title: AES
+
+
+* ECB
+
+- Se necesita un objeto para cifrar y otro para descifrar
+- Notar que los métodos =update= tanto del cifrador como del descifrador
+  permiten procesar bloques de 16 bytes de forma independiente
+- Lo anterior permite procesar archivos grandes bloque por bloque
+- Es necesario llamar a finalize como buena práctica  
+
+#+begin_src python :session *py* :results output :exports both :tangled /tmp/test.py
+  import os
+  from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+  from cryptography.hazmat.backends import default_backend
+
+  key = os.urandom(16) # 16 o 32 bytes
+  aesCipher = Cipher(algorithms.AES(key),
+                     modes.ECB(),
+                     backend = default_backend)
+  aesEncryptor = aesCipher.encryptor()
+  datos = b'datos a cifrar..' # tienen que ser 16 bytes
+  cifrado = aesEncryptor.update(datos)
+  aesEncryptor.finalize()
+  print(cifrado)
+
+  aesDecryptor = aesCipher.decryptor()
+  plano = aesDecryptor.update(cifrado)
+  aesDecryptor.finalize()
+  print(plano)
+#+end_src
+
+#+RESULTS:
+: b'I1\xb4\r5\xe9?\xc0\xbav\xad\xc6\xb0\x12\xa0\x00'
+: b'datos a cifrar..'
+
+- El método =update= tiene un comportamiento especial de acuerdo al
+  tamaño de entrada que recibe
+- Si se le pasan más bytes que el tamaño de bloque, procesa
+  tanto bloques como es posible regresando el resultado del proceso
+  (cifrar o descifrar)
+- Si sobran byes que no completan un bloque, entonces eso bytes los
+  deja en un buffer interno, la próxima vez que se vuelva a invocar a
+  =update= los considera en el siguiente bloque
+- =finalize= sirve para saber si se pudo procesar todo lo que se
+  esperaba cifrar, esto es, si no quedaron bytes en el buffer interno
+  sin procesar, de haber bytes sobrantes se lanza una excepción
+- Por lo anterior es necesario asegurarse que la longitud de la cadena
+  de bytes a procesar sea un múltiplo de la longitud del bloque (16 en
+  el caso del ejemplo)
+
+  #+RESULTS:
+  : 39
+  : 32
+
+  #+begin_src python :session *py* :results output :exports both :tangled /tmp/test.py
+    aesEncryptor = aesCipher.encryptor()
+    datos = b'datos a cifrar que se pasan de 16 bytes'
+    res = aesEncryptor.update(datos)
+    print(len(datos))
+    print(len(res)) # se quedaron 7 bytes en el buffer
+    sobrante = aesEncryptor.update(b'000000000') #padding
+    aesEncryptor.finalize()
+    print(sobrante)
+  #+end_src
+
+  #+RESULTS:
+  : 39
+  : 32
+  : b'GW\xad`\x8fqOQ\x1d{\x1d\x90pY\xbf\xfa'
