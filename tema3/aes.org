@@ -68,3 +68,170 @@
   : 39
   : 32
   : b'GW\xad`\x8fqOQ\x1d{\x1d\x90pY\xbf\xfa'
+
+** Ataque de texto plano escogido
+
+#+begin_src python :session ataque :results output :exports both :tangled /tmp/test.py
+  import os
+  from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+  from cryptography.hazmat.backends import default_backend
+
+  key = os.urandom(16)
+  aesCipher = Cipher(algorithms.AES(key),
+                     modes.ECB(),
+                     backend = default_backend)
+
+
+  mensaje1 = '''
+  De: paquito
+  Para: pepe
+  Asunto: Saludos
+  Fecha: 01/03/2022
+
+  Ataca al medio día..
+  '''
+
+  mensaje2 = '''
+  De: pepe
+  Para: paquito
+  Asunto: Saludos
+  Fecha: 01/03/2022
+
+  Atacaré mejor mañana
+  '''
+
+  aesEncryptor1 = aesCipher.encryptor()
+  aesEncryptor2 = aesCipher.encryptor()
+
+  cifrado1 = aesEncryptor1.update(mensaje1.encode('utf-8'))
+  cifrado2 = aesEncryptor2.update(mensaje2.encode('utf-8'))
+
+  print(len(cifrado1))
+  print(len(cifrado2))
+
+  print(list(cifrado1))
+  print(list(cifrado2))
+
+  valores1 = list(cifrado1)
+  valores2 = list(cifrado2)
+
+  valores3 = valores1[:-16] + valores2[-16:] + valores1[-16:]
+  cifrado3 = bytes(valores3)
+
+  aesDecryptor1 = aesCipher.decryptor()
+  aesDecryptor2 = aesCipher.decryptor()
+  aesDecryptor3 = aesCipher.decryptor()
+
+  print('Mensaje 1:')
+  print(aesDecryptor1.update(cifrado1).decode('utf-8'))
+  print()
+
+  print('Mensaje 2:')
+  print(aesDecryptor1.update(cifrado2).decode('utf-8'))
+  print()
+
+  print('Mensaje 3:')
+  print(aesDecryptor1.update(cifrado3).decode('utf-8'))
+  print()
+
+
+#+end_src
+
+#+RESULTS:
+#+begin_example
+80
+80
+[191, 36, 71, 23, 16, 52, 3, 109, 121, 22, 178, 91, 167, 23, 142, 82, 124, 231, 219, 94, 157, 215, 228, 247, 188, 80, 130, 153, 161, 10, 175, 194, 104, 75, 118, 126, 26, 227, 180, 218, 197, 43, 83, 223, 113, 49, 180, 243, 11, 96, 172, 182, 48, 11, 95, 239, 161, 50, 49, 243, 201, 152, 195, 72, 195, 67, 117, 165, 210, 11, 108, 211, 46, 149, 92, 115, 179, 70, 202, 111]
+[25, 174, 19, 183, 191, 85, 123, 58, 55, 148, 85, 17, 199, 137, 172, 248, 138, 105, 97, 48, 135, 175, 69, 107, 154, 190, 154, 148, 116, 139, 100, 112, 104, 75, 118, 126, 26, 227, 180, 218, 197, 43, 83, 223, 113, 49, 180, 243, 11, 96, 172, 182, 48, 11, 95, 239, 161, 50, 49, 243, 201, 152, 195, 72, 6, 207, 37, 201, 245, 55, 50, 244, 141, 137, 81, 237, 108, 189, 180, 78]
+Mensaje 1:
+
+De: paquito
+Para: pepe
+Asunto: Saludos
+Fecha: 01/03/2022
+
+Ataca al medio día..
+
+Mensaje 2:
+
+De: pepe
+Para: paquito
+Asunto: Saludos
+Fecha: 01/03/2022
+
+Atacaré mejor mañan
+
+Mensaje 3:
+
+De: paquito
+Para: pepe
+Asunto: Saludos
+Fecha: 01/03/2022
+
+Atacaré mejor mañan al medio día..
+#+end_example
+
+
+* CBC
+
+#+begin_src python :session *py* :results output :exports both :tangled /tmp/test.py
+  import os
+  from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+  from cryptography.hazmat.backends import default_backend
+
+  #key = os.urandom(16) # 16 o 32 bytes
+  key = b'7' * 16
+  iv = os.urandom(16)
+
+  aesCipher = Cipher(algorithms.AES(key),
+                     modes.CBC(iv),
+                     backend = default_backend)
+  aesEncryptor = aesCipher.encryptor()
+  datos = b'datos a cifrar..' # 16 bytes
+  cifrado = aesEncryptor.update(datos)
+  aesEncryptor.finalize()
+  print(cifrado)
+
+  aesDecryptor = aesCipher.decryptor()
+  plano = aesDecryptor.update(cifrado)
+  aesDecryptor.finalize()
+  print(plano)
+#+end_src
+
+#+RESULTS:
+: b'q\x83-L\xa8d-\x80\x96juA+R\xa0\x04'
+: b'datos a cifrar..'
+
+** Padding apropiado
+- También basado en =update= y =finalize=
+- Sólo finalize agrega padding update es sólo para rellenar el buffer interno 
+- Si se quiere utilizar en un ciclo:
+  + Antes de cifra usa padder.update
+  + El resultado de update es lo que se cifra
+  + Al final del ciclo cifra lo que entregue como resultado finalize
+- Para quitar el padding es lo mismo pero con un objeto unpadder
+  
+#+begin_src python :session *py* :results output :exports both :tangled /tmp/test.py
+  from cryptography.hazmat.primitives import padding
+
+  padder = padding.PKCS7(128).padder()
+  unpadder = padding.PKCS7(128).unpadder()
+
+  entrada = b'hola'
+  c = padder.update(entrada)
+  print(c)
+
+  c = padder.update(b'7' * 12)
+  print(c)
+
+  c += padder.finalize()
+  print(c)
+  print(len(c))
+
+#+end_src
+
+#+RESULTS:
+: b''
+: b'hola777777777777'
+: b'hola777777777777\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10'
+: 32
