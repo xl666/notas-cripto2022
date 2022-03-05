@@ -235,3 +235,73 @@ Atacaré mejor mañan al medio día..
 : b'hola777777777777'
 : b'hola777777777777\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10'
 : 32
+
+
+* CTR
+
+- No se necesita padding por lo que se pueden procesar datos planos de
+  cualquier tamaño sin preocuparnos
+- =finalize= ya no hace nado pero es buena práctica invocarlo 
+
+#+begin_src python :session *py* :results output :exports both :tangled /tmp/test.py
+  import os
+  from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+  from cryptography.hazmat.backends import default_backend
+
+  key = os.urandom(16) # 16 o 32 bytes
+  iv = os.urandom(16)
+  aesCipher = Cipher(algorithms.AES(key),
+                     modes.CTR(iv),
+                     backend = default_backend)
+  aesEncryptor = aesCipher.encryptor()
+  datos = b'datos a cifrar' # 14 bytes, sin problema
+  cifrado = aesEncryptor.update(datos)
+  aesEncryptor.finalize()
+  print(cifrado)
+
+  aesDecryptor = aesCipher.decryptor()
+  plano = aesDecryptor.update(cifrado)
+  aesDecryptor.finalize()
+  print(plano)
+
+#+end_src
+
+#+RESULTS:
+: b'\xf6b\xc0\xc1-\x8f]\xfc-\xc28\xde\xcft'
+: b'datos a cifrar'
+
+** Ataque de reuso de IV y llave
+
+#+begin_src python :session *ataque* :results output :exports both :tangled /tmp/test.py
+
+  import os
+  from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+  from cryptography.hazmat.backends import default_backend
+
+  def calcualar_xor(binario1, binario2):
+      'Calcular xor de dos cadenas'
+
+      bytes1 = list(binario1)
+      bytes2 = list(binario2)
+
+      longitud = len(bytes1)
+      if len(bytes2) < longitud:
+          longitud = len(bytes2)
+
+      res_bytes = []
+
+      for i in range(longitud):
+          res_bytes.append(bytes1[i] ^ bytes2[i])
+
+      return bytes(res_bytes)
+
+  key = os.urandom(16) # 16 o 32 bytes
+  iv = os.urandom(16)
+  aesCipher = Cipher(algorithms.AES(key),
+                     modes.CTR(iv),
+                     backend = default_backend)
+  aesEncryptor = aesCipher.encryptor()
+
+#+end_src
+
+#+RESULTS:
