@@ -284,24 +284,70 @@ Atacaré mejor mañan al medio día..
       bytes1 = list(binario1)
       bytes2 = list(binario2)
 
-      longitud = len(bytes1)
-      if len(bytes2) < longitud:
-          longitud = len(bytes2)
+      longitud_menor = len(bytes1)
+      lista_mas_larga = bytes2
+      if len(bytes2) < longitud_menor:
+          longitud_menor = len(bytes2)
+          lista_mas_larga = bytes1
 
       res_bytes = []
 
-      for i in range(longitud):
+      for i in range(longitud_menor):
           res_bytes.append(bytes1[i] ^ bytes2[i])
 
-      return bytes(res_bytes)
+      return bytes(res_bytes) + bytes(lista_mas_larga[longitud_menor:])
 
   key = os.urandom(16) # 16 o 32 bytes
   iv = os.urandom(16)
   aesCipher = Cipher(algorithms.AES(key),
                      modes.CTR(iv),
                      backend = default_backend)
-  aesEncryptor = aesCipher.encryptor()
 
+
+  # atacante
+  aesEncryptor = aesCipher.encryptor()
+  plano_atacante = ''' # el atacante conoce el texto plano
+  <XML>
+  <CredictCardPurchase>
+  <Merchant>Acme Inc</Merchant>
+    <Buyer>John Smith</Buyer>
+    <Date>01/01/2001</Date>
+    <Amount>$100.00</Amount>
+    <CCNumber>555-555-555-555</CCNumber>
+  </CredictCardPurchase>
+  </XML>
+  '''
+
+  cifrado_atacante = aesEncryptor.update(plano_atacante.encode('utf-8'))
+  aesEncryptor.finalize()
+
+  key_stream = calcualar_xor(plano_atacante.encode('utf-8'), cifrado_atacante)
+
+  print(key_stream)
+
+  # Víctima
+  aesEncryptor = aesCipher.encryptor() # se está reusando misma llave e iv
+
+  plano_victima = '''
+  <XML>
+  <CredictCardPurchase>
+  <Merchant>Acme Inc</Merchant>
+    <Buyer>Pepe Pecas</Buyer>
+    <Date>10/02/2001</Date>
+    <Amount>$340.00</Amount>
+    <CCNumber>777-777-777-777</CCNumber>
+  </CredictCardPurchase>
+  </XML>
+  '''
+
+  cifrado_victima = aesEncryptor.update(plano_victima.encode('utf-8')) # el atacante puede recuperar con sniffing
+
+
+  # recuperar plano víctima
+  original = calcualar_xor(key_stream, cifrado_victima)
+  print(original)
 #+end_src
 
 #+RESULTS:
+: b'\x1a7uH\xa8\x9a\xa1v\xcf`\xf7/\x0e\x85B\xbf\x94\x9d`\xd7N\xc1\\/\xf5\xe5+\xf0\x04\x9e\x81\xda\xc3\x01\xf5\xe8aYa\xea\x8c\xeeb^2\xa3]O<rq\x80S\x04f\xfe\xa9\xd1\xca\x97\xbfq\xdd\xf0\x891\x01 r\xd7\xcb\x8f\xbb\xdc\xc0\xa8\xec\xf1U\x93u\xed"\xa6<Z`BC\x8d\x91\x7f\x06\x94\xca\xe6\xe2R\xbb\x10,\xe8\xb9\x08~u\xf3\x96:\xbeV-\xbf|\x18\x9c\xc8#\x8c\x88g\xaaX\x87G\x98\xd96\xa7)z\xfck\xd6\x0b\xdfe\xae\xbc\xf0\xf9\xe8\xc2\x83\xa9\tgoSp\x89\xbd\x8e])\x145D5(\xb1{\xa1\xd5L8d\xb7\xbcKB\x82\x8e\x07\x1f/\xc6d\xdc\xb3l\x1f\xd3M#\x15RC"R\x00\x9aL\x08d\xbcf\xb57\xb8\x8an`\xbd\x17T\tY\xa3|\xa7\\*5o\x8c\x10mb,gb\x8cQD\xf4\xb0\r\\0%\x0c\x06a3\x7f\xf8\xc9\xb9.\xca\x16\xfa\x08\xac'
+: b'\n<XML>\n<CredictCardPurchase>\n<Merchant>Acme Inc</Merchant>\n  <Buyer>Pepe Pecas</Buyer>\n  <Date>10/02/2001</Date>\n  <Amount>$340.00</Amount>\n  <CCNumber>777-777-777-777</CCNumber>\n</CredictCardPurchase>\n</XML>\n|\xa7\\*5o\x8c\x10mb,gb\x8cQD\xf4\xb0\r\\0%\x0c\x06a3\x7f\xf8\xc9\xb9.\xca\x16\xfa\x08\xac'
