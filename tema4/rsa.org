@@ -1,0 +1,158 @@
+#+title: RSA
+
+* RSA manual
+- No debe de usarse esta versión, es sólo para ejemplificar
+- Considerar que el código sólo sirve para cifrar con llaves públicas y descifrar con llaves privadas
+- Si se quisiera hacer al revés, se tendrían también que cambiar los parámetros =e= y =d=
+- Sólo se pueden cifrar a lo mucho 2048 bits (tamaño de la llave)
+
+#+begin_src python :session *py* :results output :exports both :tangled /tmp/test.py
+  from cryptography.hazmat.backends import default_backend
+  from cryptography.hazmat.primitives.asymmetric import rsa
+  from cryptography.hazmat.primitives import serialization
+  import gmpy2, os, binascii
+
+    # Generar llave privada
+  private_key = rsa.generate_private_key(
+        public_exponent=65537,
+        key_size=2048,
+        backend=default_backend())
+
+    # Extraer llave publica de llave privada
+  public_key = private_key.public_key()
+
+    #Estas funciones son inseguras
+  def simple_rsa_encrypt(m, publickey):
+      # public_numbers regresa una estructura de datos con 'e' y 'n'
+      numbers = publickey.public_numbers()
+      # el cifrado es (m ** e) % n
+      return gmpy2.powmod(m, numbers.e, numbers.n)
+
+  def simple_rsa_decrypt(c, privatekey):
+      # private_numbers regresa una estructura de datos con 'd' y 'n'
+      numbers = privatekey.private_numbers()
+      # el descifrado es (c ** d) % n
+      return gmpy2.powmod(c, numbers.d, numbers.public_numbers.n)
+
+  # RSA opera con numeros enteros, no bytes
+  # es neceario convertir un archivo de bytes a un entero para procesarlo
+  def int_to_bytes(i):
+      # asegurarse de que es un entero python
+      i = int(i)
+      return i.to_bytes((i.bit_length()+7)//8, byteorder='big')
+
+  def bytes_to_int(b):
+      return int.from_bytes(b, byteorder='big')
+
+  mensaje = b'hola mundo' 
+  int_mensaje = bytes_to_int(mensaje)
+  print(int_mensaje)
+
+  cifrado = simple_rsa_encrypt(int_mensaje, public_key)
+  print(cifrado)
+  decifrado = simple_rsa_decrypt(cifrado, private_key)
+  original = int_to_bytes(decifrado)
+  print(original)
+
+#+end_src
+
+#+RESULTS:
+: 493181512369508193297519
+: 7892951635590834270023014754274118174537149105938102961402406614558052076270923053078889052321489314675992983662661611064782930181552128676601720920449827695344502698194501901719097682458799780463630622910789983463538087690134267252669544337398301125407912288217310338674771485637489173601389857138992219788460724150652146819397733365482667426071376506723272416294806682437618274178625921803407484484538328377008340189280562733178481285451312726690869114720513939852193644369556594371937916859454760806733115060509427023901255146328646457192190320891394007655536598709746760151928002736724099710983648608479292892484
+: b'hola mundo'
+
+** Homomorfismo
+
+#+begin_src python :session *py* :results output :exports both :tangled /tmp/test.py
+
+  n = public_key.public_numbers().n
+  a = 5 # texto plano 1
+  b = 10 # texto plano 2
+  encrypted_a = simple_rsa_encrypt(a, public_key)
+  encrypted_b = simple_rsa_encrypt(b, public_key)
+  encrypted_product = (encrypted_a * encrypted_b) % n
+  product = simple_rsa_decrypt(encrypted_product, private_key)
+  print(product) # 5 * 10
+
+#+end_src
+
+#+RESULTS:
+: 50
+
+** Ataque de texto cifrado escogido
+
+#+begin_src python :session *py* :results output :exports both :tangled /tmp/test.py
+
+  mensaje_original = b'Hola mundo mundial' # lo que se quiere descubrir
+  mensaje_entero = bytes_to_int(mensaje_original)
+  c0 = simple_rsa_encrypt(mensaje_entero, public_key) # interceptado
+
+  multiplo_arbitrario = 2 # r
+  cr = simple_rsa_encrypt(multiplo_arbitrario, public_key)
+
+  n = public_key.public_numbers().n
+
+  c1 = (c0 * cr) % n # mensaje para la víctima
+
+  mr = simple_rsa_decrypt(c1, private_key) # el atacante recupera esto
+
+  m = (mr * gmpy2.powmod(multiplo_arbitrario, -1, n)) % n
+
+  original = int_to_bytes(m)
+  print(original)
+
+#+end_src
+
+#+RESULTS:
+: b'Hola mundo mundial'
+
+** Ataque de módulo común
+- Se da cuando el mismo mensaje es cifrado con llaves diferentes pero
+  que utilizan el miso valor de módulo
+
+
+* Implementación con padding
+
+- No es eficiente usar RSA para cifrado en masa, no se puede cifrar
+  más allá del tamaño de módulo
+- No se recomienda usar una aproximación por bloques como en AES
+- Entre más grande el módulo es más ineficiente todo
+
+
+#+begin_src python :session *py* :results output :exports both :tangled /tmp/test.py
+  from cryptography.hazmat.backends import default_backend
+  from cryptography.hazmat.primitives.asymmetric import rsa
+  from cryptography.hazmat.primitives import hashes
+  from cryptography.hazmat.primitives.asymmetric import padding
+
+  private_key = rsa.generate_private_key(
+      public_exponent=65537,
+      key_size=2048,
+      backend=default_backend())
+
+  public_key = private_key.public_key()
+
+  message = b'prueba'
+  ciphertext1 = public_key.encrypt(
+      message,
+      padding.OAEP(
+          mgf = padding.MGF1(algorithm = hashes.SHA256()),
+          algorithm = hashes.SHA256(),
+          label = None)) # se usa rara vez dejar None
+
+  print(ciphertext1)
+  print(len(ciphertext1)) # 256 bites (tamaño del módulo)
+
+  recovered1 = private_key.decrypt(
+      ciphertext1,
+      padding.OAEP(
+          mgf = padding.MGF1(algorithm = hashes.SHA256()),
+          algorithm = hashes.SHA256(),
+      label = None))
+  print(recovered1)
+#+end_src
+
+#+RESULTS:
+: b"\ry6`O\xeeB\x04P?s\xeb\x93\x02\x1b\xb1BEQ\xc4\xb0b\xa2\xce:<\xe4\x8cLy\xe3\xf0\xac1\xaf\x9c\xbe\xfe\x18\xae\xfe\xf0#\xa3\xb3\x82\x1b\x8b_\x81\x8b\xe8<\x85\xbbD\x0c\xbc\xde[\x9c\x03R\xa2\xa0\xee\xa8\xa4\x0fN\xc2\xd9Q\xcc\x137\x0c\x92\xbe\x80\xb3\x02kS\x19\xec\xb0\x94aX\x92\xe9\x17\xfd\xa0\xaf\x10'\x80.\xa8\x80\xe57Y\xd4]\xd4\xed\x9e\xca\x1e}\xb7\xf2\xcd5\xf6`\xffBc\xe2\xfa\xc5a\xd9\xe1$\x10\x90/JUj\xb5\x86\xf0\x17\x84q-'\x8d\xc4\x05\x1f\x84~m?\xb3\xc7D\x96/14+\xd3\x1b\xc4\xf0)\xd2#<\xaf\\<=\x18\tFSz\x94FQ\xdb?\xd7\xe5\x88x\xb6@M\xa6!\xb1=K\xe0D\n\x97\x82\x1fAu\xe1<^1W\x02+\xe1w\xe8 \xbds!s\xdd\xfc\xbd\xf2N\xe7\x8f@\xcd\xa9\xac/\xb5#\x01K\x9a\xeb\x819\xd7U\xfe\xab\x91\x1c*\xef\x89\x18\xd7\xc6\xc2_?.\xb8\x80N9"
+: 256
+: b'prueba'
