@@ -1,0 +1,67 @@
+#+title: HMAC
+
+* Implementación manual
+
+#+begin_src python :session *py* :results output :exports both :tangled /tmp/test.py
+  import hashlib
+  import os
+
+  def calcualar_xor(binario1, binario2):
+      'Calcular xor de dos cadenas'
+
+      bytes1 = list(binario1)
+      bytes2 = list(binario2)
+
+      longitud_menor = len(bytes1)
+      lista_mas_larga = bytes2
+      if len(bytes2) < longitud_menor:
+          longitud_menor = len(bytes2)
+          lista_mas_larga = bytes1
+
+      res_bytes = []
+
+      for i in range(longitud_menor):
+          res_bytes.append(bytes1[i] ^ bytes2[i])
+
+      return bytes(res_bytes) + bytes(lista_mas_larga[longitud_menor:])
+
+
+  B = 128 # tamaño bloque sha256
+  entrada = b'hola mundo'
+  ipad = bytes([54]) * B # hexadecimal 36, 54 decimal
+  opad = bytes([92]) * B # hexadecimal 5c
+  K = os.urandom(B) # me salté el ajunte de K
+  # Calcular inner hash
+  kipad = calcualar_xor(K, ipad)
+  hasher = hashlib.sha256()
+  hasher.update(kipad + entrada)
+  innerHash = hasher.digest()
+
+  kopad = calcualar_xor(K, opad)
+  hasher = hashlib.sha256()
+  hasher.update(kopad + innerHash)
+  mac = hasher.hexdigest()
+  print(mac)
+
+#+end_src
+
+#+RESULTS:
+: ec68e9366ba1dfc21f5751805a8beef4afd11b758f175114894e79c09d514751
+
+* Versión de cryptography
+
+#+begin_src python :session *py* :results output :exports both :tangled /tmp/test.py
+  from cryptography.hazmat.backends import default_backend
+  from cryptography.hazmat.primitives import hashes, hmac
+
+  # Se reusa K y entrada de la versión manual
+
+  h = hmac.HMAC(K, hashes.SHA256(), backend = default_backend())
+  h.update(entrada)
+  print(h.finalize().hex())
+
+
+#+end_src
+
+#+RESULTS:
+: 975ca43cabfba07218929824f990ed5956e19db48afdfa3831549bdbc472eb7f
