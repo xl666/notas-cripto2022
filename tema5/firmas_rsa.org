@@ -22,7 +22,7 @@
                                hashes.SHA256())
 
 
-  print(signature)
+  print(len(signature))
 
   # Para verificar la firma
   try:

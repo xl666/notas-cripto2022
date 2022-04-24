@@ -1,0 +1,74 @@
+* Diffie Helman
+
+#+begin_src python :session *py* :results output :exports both :tangled /tmp/test.py
+  from cryptography.hazmat.backends import default_backend
+  from  cryptography.hazmat.primitives import hashes
+  from cryptography.hazmat.primitives.asymmetric import dh
+  from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+
+    # Parametros reusables
+    # Deben ser iguales en ambos lados
+  parameters = dh.generate_parameters(generator = 2,
+                                      key_size = 2048, backend = default_backend())
+  private_key_emisor = parameters.generate_private_key()
+  # Esta es la que se tiene que intercambiar
+  public_key_emisor = private_key_emisor.public_key()
+
+
+  private_key_receptor = parameters.generate_private_key() # los parámetros se pueden reusar
+  public_key_receptor = private_key_receptor.public_key() # si se va a intercambiar se tiene que serializar primero
+
+  shared_key_emisor = private_key_emisor.exchange(public_key_receptor) # esto es binario
+  shared_key_receptor = private_key_receptor.exchange(public_key_emisor)
+
+  print(shared_key_emisor == shared_key_receptor)
+
+#+end_src
+
+#+RESULTS:
+: True
+: b'\x18I\xb8\x03\xc7\xf0\x0e\xa5F\xc7\x05\x12j\xb77^\xe6\xb1\x83\xf2\x8b\x1d\xb2\xe1\xcb"\x9f\xc1/\x83?\xe7'
+
+** Derivar una llave
+- El binario obtenido al crear el secreto compartido es más largo de lo que se necesita
+- =HKDF= es un algoritmo para derivar una llave a través de un secreto
+  (podría ser también una contraseña)
+
+ #+begin_src python :session *py* :results output :exports both :tangled /tmp/test.py
+   # Hay que convertir el binario compartido a una llave aes apropiada
+   derived_key = HKDF(algorithm = hashes.SHA256(),
+                      length = 32, salt = None,
+                      info = b'handshake data', # tiene que ser lo mismo de los dos lados
+                      backend = default_backend()).derive(shared_key_emisor)
+   print(derived_key)
+   print(len(derived_key)) # apropiada para aes 128
+ #+end_src
+
+ #+RESULTS:
+ : b'\x18I\xb8\x03\xc7\xf0\x0e\xa5F\xc7\x05\x12j\xb77^\xe6\xb1\x83\xf2\x8b\x1d\xb2\xe1\xcb"\x9f\xc1/\x83?\xe7'
+ : 32
+
+ 
+** Serializar llaves
+- Necesario para intercambiar la llave pública y poder generar el secreto compartido
+- Se muestra como serializar en formato PEM
+
+#+begin_src python :session *py* :results output :exports both :tangled /tmp/test.py
+  from cryptography.hazmat.primitives import serialization
+
+  llave_serialiada = public_key_emisor.public_bytes(
+      encoding=serialization.Encoding.PEM,
+      format=serialization.PublicFormat.SubjectPublicKeyInfo)
+  print(llave_serialiada)
+
+  # regresar a objeto llave
+  public_key_recuperada = serialization.load_pem_public_key(
+      llave_serialiada,
+      backend=default_backend())
+  print(public_key_recuperada)
+#+end_src  
+
+#+RESULTS:
+: b'-----BEGIN PUBLIC KEY-----\nMIICJDCCARcGCSqGSIb3DQEDATCCAQgCggEBAIUVYsx5EpNiFZ/otAWtox8nsIOq\n9WVCHKCPvGMOcvmk6fes6zdhJL0xu+Gs4s5pojJ3luamFTdQuY2jPBsBWhhmR+xN\nAtYEL63jV6Q1AI8mnxfEjcaWiMe1FptpXOgqLP4MZ3uGf3VS07HdPfvUKkITUGT3\nSG3BFfN9Lgb8PquYmu7U9ti2DugS3UQu8duwY/TUu8AM8jEv/ZeRHCswy/zP745k\nvP5z+jUlmMEj43p//wQUcbim7GVt7UfERDLCzQVBtBUMrK5a1hrcG4akTIUxkf5P\nFPEjwMm9hpDAO3fu45ecnAKHv7pQX+KA1mLta65GShJZ5hSeHKi67zHyAdMCAQID\nggEFAAKCAQBLe87I4ahcKIUzEYSpiHXGO4uughh3QF47tRm0K4mQYaD++605ZzKB\nnutXOl/nknFuwYZ9778Wl6ohXZ9BIcMYIoSqQ6fb6WKaUZjF3j/5y4ulgrZiEMme\nJ64qWCG7ZON7mOtD4Fu+aj4NCUaStwxqZjtpY0CedhQQN7SB0YNtefG4T+y+V9eo\n3InOyM1O/Czi/UNBHBL0yf5CgTthkaXi7SbBf8F5bfkdaqqJfMqckdV4oSrZxIv9\n+U8rlqP03+WwTjJzcBnVNnhZlqptYWorAb+FvsZlQwK0xqRyU+97KQjwVQqjcZSv\nQYiS8vD5k/0ZBgDagS5DnjMRr9AdegVT\n-----END PUBLIC KEY-----\n'
+: <cryptography.hazmat.backends.openssl.dh._DHPublicKey object at 0x7f69cd02d1e0>
+ 
