@@ -1,7 +1,7 @@
 * Diffie Helman
 
 #+begin_src python :session *py* :results output :exports both :tangled /tmp/test.py
-  from cryptography.hazmat.backends import default_backend
+   from cryptography.hazmat.backends import default_backend
   from  cryptography.hazmat.primitives import hashes
   from cryptography.hazmat.primitives.asymmetric import dh
   from cryptography.hazmat.primitives.kdf.hkdf import HKDF
@@ -22,6 +22,8 @@
   shared_key_receptor = private_key_receptor.exchange(public_key_emisor)
 
   print(shared_key_emisor == shared_key_receptor)
+  print(shared_key_emisor)
+  
 
 #+end_src
 
@@ -72,3 +74,27 @@
 : b'-----BEGIN PUBLIC KEY-----\nMIICJDCCARcGCSqGSIb3DQEDATCCAQgCggEBAIUVYsx5EpNiFZ/otAWtox8nsIOq\n9WVCHKCPvGMOcvmk6fes6zdhJL0xu+Gs4s5pojJ3luamFTdQuY2jPBsBWhhmR+xN\nAtYEL63jV6Q1AI8mnxfEjcaWiMe1FptpXOgqLP4MZ3uGf3VS07HdPfvUKkITUGT3\nSG3BFfN9Lgb8PquYmu7U9ti2DugS3UQu8duwY/TUu8AM8jEv/ZeRHCswy/zP745k\nvP5z+jUlmMEj43p//wQUcbim7GVt7UfERDLCzQVBtBUMrK5a1hrcG4akTIUxkf5P\nFPEjwMm9hpDAO3fu45ecnAKHv7pQX+KA1mLta65GShJZ5hSeHKi67zHyAdMCAQID\nggEFAAKCAQBLe87I4ahcKIUzEYSpiHXGO4uughh3QF47tRm0K4mQYaD++605ZzKB\nnutXOl/nknFuwYZ9778Wl6ohXZ9BIcMYIoSqQ6fb6WKaUZjF3j/5y4ulgrZiEMme\nJ64qWCG7ZON7mOtD4Fu+aj4NCUaStwxqZjtpY0CedhQQN7SB0YNtefG4T+y+V9eo\n3InOyM1O/Czi/UNBHBL0yf5CgTthkaXi7SbBf8F5bfkdaqqJfMqckdV4oSrZxIv9\n+U8rlqP03+WwTjJzcBnVNnhZlqptYWorAb+FvsZlQwK0xqRyU+97KQjwVQqjcZSv\nQYiS8vD5k/0ZBgDagS5DnjMRr9AdegVT\n-----END PUBLIC KEY-----\n'
 : <cryptography.hazmat.backends.openssl.dh._DHPublicKey object at 0x7f69cd02d1e0>
  
+** ECDH
+
+#+begin_src python :session *py* :results output :exports both :tangled /tmp/test.py
+  from cryptography.hazmat.backends import default_backend
+  from  cryptography.hazmat.primitives import hashes
+  from cryptography.hazmat.primitives.asymmetric import ec
+  from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+
+  private_key_emisor = ec.generate_private_key(ec.SECP384R1(), default_backend())
+  public_key_emisor = private_key_emisor.public_key()
+
+  private_key_receptor = ec.generate_private_key(ec.SECP384R1(), default_backend())
+  public_key_receptor = private_key_receptor.public_key()
+
+  shared_key_emisor = private_key_emisor.exchange(ec.ECDH(), public_key_receptor) # esto es binario
+  shared_key_receptor = private_key_receptor.exchange(ec.ECDH(), public_key_emisor)
+
+  print(shared_key_emisor == shared_key_receptor)
+
+
+#+end_src
+
+#+RESULTS:
+: True
