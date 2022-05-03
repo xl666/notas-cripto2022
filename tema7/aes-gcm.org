@@ -1,0 +1,68 @@
+* AES-GCM
+
+** Cifrar
+
+#+begin_src python :session *py* :results output :exports both :tangled /tmp/test.py
+  from cryptography.hazmat.backends import default_backend
+  from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
+  import os
+  from cryptography. hazmat.primitives.ciphers import Cipher, algorithms, modes
+
+  # generar llave aes a partir de un password
+  salt = os.urandom(16)
+  kdf = Scrypt(salt=salt, length = 32, n =2**14, r =8, p=1, backend=default_backend())
+  password = 'Hola'.encode('utf-8')
+  key = kdf.derive(password) # llave aes
+
+  iv = os.urandom(12)
+
+  encryptor = Cipher(algorithms.AES(key),
+                     modes.GCM(iv),
+                     backend = default_backend()).encryptor()
+
+  associated_data = iv + salt
+  encryptor.authenticate_additional_data(associated_data)
+  cifrado = encryptor.update(b'ejemplo de contenido plano')
+  encryptor.finalize() # necesario para generar tag
+  tag = encryptor.tag # 16 bytes
+  print(key)
+  print(tag)
+  print(len(tag))
+
+#+end_src
+
+#+RESULTS:
+: b'+\xbb\xcd\xf9x\x03\xd5R\xec2\xad\xf0`H\xf2\xeeP_!A\x9a\xc3\xec\xa4NPK=\xbcp.\x0b'
+: b'L\x99\x92G\x8f\x04\x0b\xabqe\xd8Ed dC'
+
+** Descifrar
+#+begin_src python :session *py* :results output :exports both :tangled /tmp/test.py
+
+  # el salt, iv, tag y password vienen de la  sesión pasada, por eso no hay error 
+  kdf = Scrypt(salt=salt , length=32,
+               n=2**14, r=8, p=1,
+               backend = default_backend())
+
+  key = kdf.derive(password)
+
+  decryptor = Cipher(algorithms.AES( key),
+                      modes.GCM(iv, tag) ,
+                      backend = default_backend()).decryptor()
+
+  associated_data = iv + salt
+  decryptor.authenticate_additional_data(associated_data)
+  texto_plano = decryptor.update(cifrado)
+  print(texto_plano)
+  # si hay alteraciones finalize lanza excepcion
+  try:
+      decryptor.finalize()
+      print('Pasó la verificación de tag, todo OK')
+  except:
+      print('No pasó la verificación de tag, integridad comprometida')
+#+end_src
+
+#+RESULTS:
+: b'ejemplo de contenido plano'
+: Pasó la verificación de tag, todo OK
+
+
